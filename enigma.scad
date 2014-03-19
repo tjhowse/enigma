@@ -46,6 +46,10 @@ rotor_mid_r = ratchet_ring_r+ratchet_tooth_depth/2;
 // rotor_mid_z = (screw_total_z*2 - ratchet_z*2)+contact_tip_clearance;
 
 under_rotor_clearance = 20; // This depends on where the hinge is for the lever which actuates the pawls.
+reflector_hollow_depth = 20;
+reflector_leg_xy = 10;
+reflector_gap = 1;
+reflector_r = contact_ring_r+screw_head_r+wall_thickness;
 
 
 module screw(big_head = 0)
@@ -106,7 +110,7 @@ module ratchet_right()
 		{
 			rotate([0,0,i]) translate([ratchet_ring_r,0,-zff]) ratchet_cut(ratchet_right_z+zff*2);
 		}
-		translate([0,0,-zff]) rotate([180,0,45]) join_holes();
+		translate([0,0,-zff]) rotate([180,0,0]) join_holes();
 		cylinder(r=rotor_axle_r,h=ratchet_right_z);
 	}
 }
@@ -144,27 +148,29 @@ module rotor_mid()
 		}
 		translate([0,0,-zff]) cylinder(r=rotor_mid_r-2*wall_thickness,h=rotor_mid_z+2*zff);
 	}
-	rotor_mid_spokes();
+	rotate([0,0,0]) rotor_mid_spokes(4);
 }
 
-module rotor_mid_spokes()
+module rotor_mid_spokes(spokes = 4)
 {
 	difference()
 	{
 		union()
 		{
-			for (i=[0:360/8:360])
+			for (i=[0:360/spokes:360])
 			{
-				rotate([0,0,i]) translate([join_screw_r,0,0]) cylinder(r=screw_shaft_r+wall_thickness,h=rotor_mid_z);
-				rotate([0,0,i]) translate([0,-wall_thickness/2,0]) cube([rotor_mid_r-wall_thickness,wall_thickness,rotor_mid_z/2]);
+				rotate([0,0,i]) translate([join_screw_r,0,0]) cylinder(r=screw_shaft_r+wall_thickness,h=rotor_mid_z);				
 			}
+			rotate([0,0,90]) translate([-rotor_mid_r+wall_thickness/2,-wall_thickness/2,0]) cube([(rotor_mid_r-wall_thickness)*2,wall_thickness,rotor_mid_z/2]);
+			translate([-rotor_mid_r+wall_thickness/2,-screw_shaft_r-wall_thickness,0]) cube([(rotor_mid_r-wall_thickness)*2,wall_thickness,rotor_mid_z/2]);
+			translate([-rotor_mid_r+wall_thickness/2,+screw_shaft_r,0]) cube([(rotor_mid_r-wall_thickness)*2,wall_thickness,rotor_mid_z/2]);
 			cylinder(r=rotor_axle_r+wall_thickness,h=rotor_mid_z);
 		}
-		for (i=[0:360/8:360])
+		for (i=[0:360/spokes:360])
 		{
 			rotate([0,0,i]) translate([join_screw_r,0,0]) cylinder(r=screw_shaft_r,h=rotor_mid_z);
 		}
-		translate([0,0,-zff]) #cylinder(r=rotor_axle_r,h=rotor_mid_z+2*zff);
+		translate([0,0,-zff]) cylinder(r=rotor_axle_r,h=rotor_mid_z+2*zff);
 	}
 }
 
@@ -195,9 +201,92 @@ module rotor_assemble(explode = 0)
 
 }
 
+module reflector()
+{
+	difference()
+	{
+		cylinder(r=reflector_r,h=ratchet_right_z);
+		translate([0,0,-screw_head_z+contact_right_countersink]) rotate([180,0,0]) contact_holes();
+		translate([0,0,-zff]) rotate([180,0,45]) join_holes();
+		cylinder(r=rotor_axle_r,h=ratchet_right_z);
+	}
+}
+
+module reflector_sleeve()
+{
+	difference()
+	{
+		cylinder(r=reflector_r,h=reflector_hollow_depth);
+		translate([0,0,-zff]) cylinder(r=reflector_r-wall_thickness,h=reflector_hollow_depth+2*zff);
+		translate([reflector_r-5,-(screw_shaft_r*2)/2,wall_thickness]) cube([10,screw_shaft_r*2,reflector_hollow_depth-2*wall_thickness]);
+		rotate([0,0,180]) translate([reflector_r-5,-(screw_shaft_r*2)/2,wall_thickness]) cube([10,screw_shaft_r*2,reflector_hollow_depth-2*wall_thickness]);
+	}
+	intersection()
+	{
+		cylinder(r=reflector_r,h=reflector_hollow_depth/2);
+		rotate([0,0,45]) rotor_mid_spokes(4);
+	}
+	// reflector_spring();
+	translate([-join_screw_r+5,-join_screw_r+5,rotor_mid_z]) reflector_spring();
+}
+
+module reflector_mount()
+{
+	difference()
+	{
+		union()
+		{
+			cylinder(r=reflector_r+reflector_gap+wall_thickness,h=reflector_hollow_depth+wall_thickness);
+			translate([-reflector_r-reflector_gap-wall_thickness,-reflector_r-under_rotor_clearance,0])
+				cube([(reflector_r+reflector_gap+wall_thickness)*2,reflector_r+under_rotor_clearance,reflector_hollow_depth+wall_thickness]);
+			// translate([0,0,wall_thickness]) cylinder(r=rotor_axle_r+wall_thickness,h=reflector_hollow_depth+wall_thickness);
+		}
+		translate([0,0,wall_thickness]) cylinder(r=reflector_r+reflector_gap,h=reflector_hollow_depth+wall_thickness);
+		translate([-((reflector_r+reflector_gap+wall_thickness)*2)/2+reflector_leg_xy,-reflector_r-under_rotor_clearance,0])
+			cube([(reflector_r+reflector_gap+wall_thickness)*2-2*reflector_leg_xy,under_rotor_clearance-wall_thickness,reflector_hollow_depth+wall_thickness]);
+		translate([-reflector_r-reflector_gap-wall_thickness-zff,0,reflector_hollow_depth-screw_shaft_r]) rotate([0,90,0]) cylinder(r=screw_shaft_r,h=(reflector_r+reflector_gap+wall_thickness+zff)*2);
+	}
+	translate([0,0,wall_thickness]) difference ()
+	{
+		cylinder(r=rotor_axle_r+wall_thickness,h=reflector_hollow_depth/3+wall_thickness);
+		cylinder(r=rotor_axle_r,h=reflector_hollow_depth/3+wall_thickness);
+	}
+}
+
+module reflector_spring()
+{
+	difference()
+	{
+		translate([0,0,wall_thickness/2]) cube([screw_shaft_r*2+wall_thickness*2,screw_shaft_r*2+wall_thickness*2,wall_thickness],center=true);
+		cylinder(r=screw_shaft_r,h=wall_thickness);
+	}
+	translate([-screw_shaft_r-wall_thickness,screw_shaft_r+wall_thickness,0]) rotate([45,0,0]) cube([screw_shaft_r*2+wall_thickness*2,reflector_hollow_depth/sin(45),wall_thickness]);
+	
+
+}
+
+
 // ratchet_cut(screw_shaft_z);
 // rotate([180,0,0]) ratchet_right();
-// ratchet_left();
+ratchet_left();
 // ratchet_right();
-rotor_assemble(20);
+// rotor_assemble(0);
 // rotor_mid();
+
+// reflector_sleeve();
+// rotate([0,90,0]) reflector_spring();
+
+// difference()
+// {
+	// union()
+	// {
+		// translate([0,0,reflector_hollow_depth+15]) union()
+		// {
+			// translate([0,0,ratchet_right_z]) rotate([180,0,0]) reflector();
+			// rotate([180,0,180]) reflector_sleeve();
+		// }
+		// reflector_mount();
+	// }
+	// translate([-100,-50,0]) cube([100,100,100]);
+// }
+
