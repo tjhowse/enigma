@@ -47,10 +47,12 @@ rotor_mid_r = ratchet_ring_r+ratchet_tooth_depth/2;
 
 under_rotor_clearance = 20; // This depends on where the hinge is for the lever which actuates the pawls.
 reflector_hollow_depth = 20;
-reflector_leg_xy = 10;
+reflector_leg_xy = 5;
 reflector_gap = 1;
 reflector_r = contact_ring_r+screw_head_r+wall_thickness;
 
+mount_bolt_r = 1.5;
+reflector_cable_hole_r = 4;
 
 module screw(big_head = 0)
 {
@@ -201,19 +203,30 @@ module rotor_assemble(explode = 0)
 
 }
 
-module reflector()
+module left_reflector()
 {
 	difference()
 	{
 		cylinder(r=reflector_r,h=ratchet_right_z);
 		translate([0,0,-screw_head_z+contact_right_countersink]) rotate([180,0,0]) contact_holes();
-		translate([0,0,-zff]) rotate([180,0,45]) join_holes();
+		translate([0,0,-zff]) rotate([180,0,0]) join_holes();
+		cylinder(r=rotor_axle_r,h=ratchet_right_z);
+	}
+}
+module right_reflector()
+{
+	difference()
+	{
+		cylinder(r=reflector_r,h=ratchet_right_z);
+		translate([0,0,ratchet_left_z+zff-contact_left_countersink]) contact_holes();
+		translate([0,0,ratchet_right_z+zff]) rotate([0,0,0]) join_holes();
 		cylinder(r=rotor_axle_r,h=ratchet_right_z);
 	}
 }
 
-module reflector_sleeve()
+module reflector_sleeve(left_right = 0)
 {
+	// Left = 0, right = 1
 	difference()
 	{
 		cylinder(r=reflector_r,h=reflector_hollow_depth);
@@ -224,13 +237,13 @@ module reflector_sleeve()
 	intersection()
 	{
 		cylinder(r=reflector_r,h=reflector_hollow_depth/2);
-		rotate([0,0,45]) rotor_mid_spokes(4);
+		rotate([0,0,45+left_right*90]) rotor_mid_spokes(4);
 	}
 	// reflector_spring();
-	translate([-join_screw_r+5,-join_screw_r+5,rotor_mid_z]) reflector_spring();
+	// translate([-join_screw_r+5,-join_screw_r+5,rotor_mid_z]) reflector_spring();
 }
 
-module reflector_mount()
+module reflector_mount(hole = 0)
 {
 	difference()
 	{
@@ -239,12 +252,19 @@ module reflector_mount()
 			cylinder(r=reflector_r+reflector_gap+wall_thickness,h=reflector_hollow_depth+wall_thickness);
 			translate([-reflector_r-reflector_gap-wall_thickness,-reflector_r-under_rotor_clearance,0])
 				cube([(reflector_r+reflector_gap+wall_thickness)*2,reflector_r+under_rotor_clearance,reflector_hollow_depth+wall_thickness]);
+			translate([-reflector_r-reflector_gap-wall_thickness-reflector_leg_xy*2,-reflector_r-under_rotor_clearance,0])
+				cube([(reflector_r+reflector_gap+wall_thickness+reflector_leg_xy*2)*2,reflector_leg_xy,reflector_hollow_depth+wall_thickness+reflector_leg_xy*2]);
 			// translate([0,0,wall_thickness]) cylinder(r=rotor_axle_r+wall_thickness,h=reflector_hollow_depth+wall_thickness);
 		}
 		translate([0,0,wall_thickness]) cylinder(r=reflector_r+reflector_gap,h=reflector_hollow_depth+wall_thickness);
 		translate([-((reflector_r+reflector_gap+wall_thickness)*2)/2+reflector_leg_xy,-reflector_r-under_rotor_clearance,0])
-			cube([(reflector_r+reflector_gap+wall_thickness)*2-2*reflector_leg_xy,under_rotor_clearance-wall_thickness,reflector_hollow_depth+wall_thickness]);
+			cube([(reflector_r+reflector_gap+wall_thickness)*2-2*reflector_leg_xy,under_rotor_clearance-wall_thickness,reflector_hollow_depth+wall_thickness+reflector_leg_xy*2]);
 		translate([-reflector_r-reflector_gap-wall_thickness-zff,0,reflector_hollow_depth-screw_shaft_r]) rotate([0,90,0]) cylinder(r=screw_shaft_r,h=(reflector_r+reflector_gap+wall_thickness+zff)*2);
+		translate([-reflector_r+reflector_gap-wall_thickness*2-reflector_leg_xy,-reflector_r-under_rotor_clearance,wall_thickness+mount_bolt_r]) rotate([-90,0,0]) cylinder(r=mount_bolt_r,h=reflector_leg_xy);
+		translate([-reflector_r+reflector_gap-wall_thickness*2-reflector_leg_xy,-reflector_r-under_rotor_clearance,reflector_hollow_depth+reflector_leg_xy*2 -mount_bolt_r]) rotate([-90,0,0]) cylinder(r=mount_bolt_r,h=reflector_leg_xy);
+		translate([-(-reflector_r+reflector_gap-wall_thickness*2-reflector_leg_xy),-reflector_r-under_rotor_clearance,wall_thickness+mount_bolt_r]) rotate([-90,0,0]) cylinder(r=mount_bolt_r,h=reflector_leg_xy);
+		translate([-(-reflector_r+reflector_gap-wall_thickness*2-reflector_leg_xy),-reflector_r-under_rotor_clearance,reflector_hollow_depth+reflector_leg_xy*2 -mount_bolt_r]) rotate([-90,0,0]) cylinder(r=mount_bolt_r,h=reflector_leg_xy);
+		translate([0,0,(reflector_hollow_depth+wall_thickness)/2]) rotate([90,0,0]) cylinder(r=reflector_cable_hole_r,h=100);
 	}
 	translate([0,0,wall_thickness]) difference ()
 	{
@@ -261,32 +281,43 @@ module reflector_spring()
 		cylinder(r=screw_shaft_r,h=wall_thickness);
 	}
 	translate([-screw_shaft_r-wall_thickness,screw_shaft_r+wall_thickness,0]) rotate([45,0,0]) cube([screw_shaft_r*2+wall_thickness*2,reflector_hollow_depth/sin(45),wall_thickness]);
-	
+	translate([0,reflector_hollow_depth+wall_thickness,reflector_hollow_depth]) rotate([0,90,0]) cylinder(r=2,h=screw_shaft_r*2+wall_thickness*2,center=true);
 
 }
 
 
 // ratchet_cut(screw_shaft_z);
 // rotate([180,0,0]) ratchet_right();
-ratchet_left();
+// ratchet_left();
 // ratchet_right();
 // rotor_assemble(0);
 // rotor_mid();
 
-// reflector_sleeve();
+// reflector_sleeve(1);
 // rotate([0,90,0]) reflector_spring();
-
-// difference()
-// {
-	// union()
-	// {
-		// translate([0,0,reflector_hollow_depth+15]) union()
-		// {
-			// translate([0,0,ratchet_right_z]) rotate([180,0,0]) reflector();
-			// rotate([180,0,180]) reflector_sleeve();
-		// }
-		// reflector_mount();
-	// }
-	// translate([-100,-50,0]) cube([100,100,100]);
-// }
+// translate([10,0,0]) rotate([0,90,0]) reflector_spring();
+// translate([20,0,0]) rotate([0,90,0]) reflector_spring();
+// translate([30,0,0]) rotate([0,90,0]) reflector_spring();
+// rotate([0,90,0]) reflector_spring();
+// rotate([180,0,0]) left_reflector();
+// left_reflector();
+// translate([30,0,0]) right_reflector();
+render()
+{
+	difference()
+	{
+		union()
+		{
+			translate([0,0,reflector_hollow_depth+15]) union()
+			{
+				translate([0,0,ratchet_right_z]) rotate([180,0,-45]) left_reflector();
+				rotate([0,0,-45]) right_reflector();
+				rotate([180,0,180]) reflector_sleeve();
+			}
+			reflector_mount();
+		}
+		translate([-200,-100,-zff]) cube([200,200,100]);
+	}
+}
+// reflector_mount();
 
